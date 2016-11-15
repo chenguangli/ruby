@@ -6639,6 +6639,10 @@ static int
 gc_is_moveable_obj(VALUE obj, const VALUE *start, register long n)
 {
     size_t i;
+
+    if (!rb_objspace_marked_object_p(obj))
+	return FALSE;
+
     if (obj >= *start && obj <= ((*start) + n)) {
 	return FALSE;
     }
@@ -6707,10 +6711,10 @@ gc_compact_page(rb_objspace_t *objspace, struct heap_page *page, const VALUE *st
     scan = free + page->total_slots - 1;
 
     while (free < scan) {
-	while(rb_objspace_marked_object_p(free))
+	while(rb_objspace_marked_object_p(free) && BUILTIN_TYPE(free) != T_NONE)
 	    free++;
 
-	while(!rb_objspace_marked_object_p(scan) && scan > free)
+	while(!gc_is_moveable_obj(scan, start, n) && scan > free)
 	    scan--;
 
 	if (scan > free) {

@@ -850,7 +850,7 @@ struct RMoved {
 
 struct RBasic {
     VALUE flags;
-    const VALUE klass;
+    VALUE klass;
 }
 #ifdef __GNUC__
     __attribute__((aligned(sizeof(VALUE))))
@@ -1047,7 +1047,7 @@ struct RArray {
 struct RRegexp {
     struct RBasic basic;
     struct re_pattern_buffer *ptr;
-    const VALUE src;
+    VALUE src;
     unsigned long usecnt;
 };
 #define RREGEXP_PTR(r) (RREGEXP(r)->ptr)

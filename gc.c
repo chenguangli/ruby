@@ -895,6 +895,12 @@ static inline void gc_prof_sweep_timer_stop(rb_objspace_t *);
 static inline void gc_prof_set_malloc_info(rb_objspace_t *);
 static inline void gc_prof_set_heap_info(rb_objspace_t *);
 
+#define UPDATE_IF_MOVED(_objspace, _thing) do { \
+    if (gc_object_moved_p(_objspace, _thing)) { \
+       (_thing) = (VALUE)RMOVED((_thing))->destination; \
+    } \
+} while (0)
+
 #define gc_prof_record(objspace) (objspace)->profile.current_record
 #define gc_prof_enabled(objspace) ((objspace)->profile.run && (objspace)->profile.current_record)
 
@@ -6826,11 +6832,7 @@ gc_ref_update_array(VALUE v, rb_objspace_t * objspace)
     if (len > 0) {
 	VALUE *ptr = RARRAY_CONST_PTR(v);
 	for(i = 0; i < len; i++) {
-	    if (is_markable_object(objspace, ptr[i])) {
-		if(ptr[i] && BUILTIN_TYPE(ptr[i]) == T_MOVED) {
-		    ptr[i] = (VALUE)RMOVED(ptr[i])->destination;
-		}
-	    }
+	    UPDATE_IF_MOVED(objspace, ptr[i]);
 	}
     }
 }
@@ -6840,10 +6842,8 @@ gc_ref_update_object(VALUE v, rb_objspace_t * objspace)
 {
     uint32_t i, len = ROBJECT_NUMIV(v);
     VALUE *ptr = ROBJECT_IVPTR(v);
-    for (i  = 0; i < len; i++) {
-	if (is_markable_object(objspace, ptr[i]) && BUILTIN_TYPE(ptr[i]) == T_MOVED) {
-	    ptr[i] = (VALUE)RMOVED(ptr[i])->destination;
-	}
+    for (i = 0; i < len; i++) {
+	UPDATE_IF_MOVED(objspace, ptr[i]);
     }
 }
 
@@ -6962,9 +6962,7 @@ gc_update_object_references(rb_objspace_t *objspace, VALUE obj)
 
 	case T_STRING:
 	    if (STR_SHARED_P(obj)) {
-		if (gc_object_moved_p(objspace, any->as.string.as.heap.aux.shared)) {
-		    any->as.string.as.heap.aux.shared = (VALUE)RMOVED(any->as.string.as.heap.aux.shared)->destination;
-		}
+		UPDATE_IF_MOVED(objspace, any->as.string.as.heap.aux.shared);
 	    }
 	case T_DATA:
 	    /* Don't need to do anything */
@@ -6985,9 +6983,7 @@ gc_update_object_references(rb_objspace_t *objspace, VALUE obj)
 	    }
 	    break;
 	case T_REGEXP:
-	    if (gc_object_moved_p(objspace, any->as.regexp.src)) {
-		any->as.regexp.src = (VALUE)RMOVED(any->as.regexp.src)->destination;
-	    }
+	    UPDATE_IF_MOVED(objspace, any->as.regexp.src);
 	    break;
 
 	case T_FLOAT:
